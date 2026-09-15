@@ -34,6 +34,23 @@ the search wanders indefinitely one step from the answer. Aiming most proposals
 at a pair that is actually uncovered, and repairing the block that already
 holds most of it, is what crosses that last step.
 
+### The advantage grows with difficulty
+
+Both strategies were also run over 120 cells neither had seen, at 60 million
+moves each, and compared on the *same* cell so difficulty is controlled:
+
+| Cells | Guided closer | Naive closer | Tied | Guided wins |
+|---|---|---|---|---|
+| Stayed far (>25 uncovered) | 55 | 39 | 4 | 59% |
+| Got close (<=25 uncovered) | 12 | 3 | 7 | **80%** |
+| Converting a near miss into a record | | | | **7x** |
+
+Far from a solution almost any move helps, so the two are nearly equivalent.
+As the design approaches completion the set of useful moves collapses to a
+handful and the gap widens, until at the last uncovered pair it decides the
+outcome. A median comparison understates this, because it averages the regime
+where the methods tie with the regime that actually produces records.
+
 ## Four new covering designs
 
 A `(v, k, t)`-covering design is a family of `k`-subsets of a `v`-set such that
@@ -105,6 +122,11 @@ Knowing where to look was necessary and nowhere near sufficient.
 - **2,948 cells attacked, 4 records. A hit rate of 0.14%.**
 - **120 arms on fresh inherited-provenance cells, 60 million moves each: zero
   records.** Aimed squarely at the right class, nothing falls out on its own.
+- That same run measured the targeting signal prospectively, on a random sample
+  attacked blind: median **112-127** uncovered on cells whose value was
+  inherited, against **2,308-2,337** on cells someone had searched. Whether a
+  cell has been searched before predicts how close you get roughly twentyfold
+  better than which search you use.
 - Naive annealing aimed *directly* at a cell already known to be solvable finds
   it **1 time in 6**, and spends the other five stuck one pair short.
 

@@ -48,3 +48,44 @@ would flatter the guided side considerably.
 Neither arm chooses its own target. All four records in this repository came
 from cells selected by reading the repository's provenance metadata, and that
 selection is not measured here.
+
+## The advantage escalates with difficulty
+
+A second experiment ran both search strategies over 120 cells neither had seen
+- 60 whose published value came from a dedicated search, 60 whose value was
+inherited from a neighbour - at 60 million moves each. Neither found a record
+at that budget, so the informative measure is how close each got, compared on
+the *same* cell so difficulty is controlled for.
+
+| Cells | Designed closer | Naive closer | Tied | Designed wins |
+|---|---|---|---|---|
+| Stayed far (>25 uncovered) | 55 | 39 | 4 | 59% |
+| Got close (<=25 uncovered) | 12 | 3 | 7 | **80%** |
+| Converting a near miss into a record | | | | **7x** |
+
+Far from a solution almost any move helps, so a uniformly random swap is nearly
+as good as a targeted one and the designed strategy wins barely more often than
+chance. As the design approaches completion the set of useful moves collapses
+to a handful, a random swap almost never picks one, and the gap widens. At the
+limit - the last uncovered pair - it decides the outcome: 7 of 12 against 1 of
+12 on cells known to be solvable, with five of six naive runs spending their
+entire budget frozen exactly one pair short.
+
+So a median comparison understates the difference, because it averages a regime
+where the two are near-equivalent together with the regime that produces
+records. The 12-against-3 bucket is small and should be read as suggestive; the
+55-against-39 and the 7-against-1 ends are better powered.
+
+## The targeting signal, measured prospectively
+
+The same experiment tested the other claim, on a random sample drawn before
+either method ran:
+
+| Cell provenance | n | median uncovered reached |
+|---|---|---|
+| Value inherited from a neighbour | 120 arms | **112 - 127** |
+| Value set by a dedicated search | 120 arms | **2,308 - 2,337** |
+
+A twentyfold difference, on cells sampled at random and attacked blind. Whether
+anyone had previously searched a cell predicts how close a search gets to
+beating it far more strongly than which search you use.
