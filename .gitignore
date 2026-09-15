@@ -6,3 +6,4 @@ target/
 .pytest_cache/
 .env
 *.log
+covering/results/SUBMISSION.md
