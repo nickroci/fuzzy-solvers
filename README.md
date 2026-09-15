@@ -63,36 +63,56 @@ Baseline is the current release: La Jolla Coverings Repository v1.2, Zenodo,
 improvements beyond that release, in a live browser session. All four still
 read at the published value there.
 
-## Why these records were there to be found
+## Where to look, and being able to convert
 
-The interesting part is not the search. It is that the frontier has a region
-nobody is looking at, and it is visible in the repository's own metadata.
+Two things were needed, and neither was sufficient alone.
+
+### Knowing where to look
 
 A covering design is a lottery wheel: buy these tickets, guarantee this match.
 The parameter `t` is the guarantee. The repository's active contributors are
-the lottery-wheeling community, and the site hosting their submissions charges
-a subscription, so effort concentrates where a wheel is worth selling. A `t=5`
-wheel wins something when five numbers come up. A `t=2` wheel guarantees you
-match two numbers, which pays nothing. Same mathematical object, no customer.
+largely the lottery-wheeling community, and the site hosting their submissions
+charges a subscription, so effort concentrates where a wheel is worth selling.
+A `t=5` wheel wins something when five numbers come up. A `t=2` wheel guarantees
+you match two numbers, which pays nothing. Same mathematical object, very
+different demand.
 
 Share of cells whose current value was set in 2020 or later:
 
 | t | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
 |---|---|---|---|---|---|---|---|
-| touched since 2020 | **7.5%** | 46.6% | 71.5% | 77.2% | 81.5% | 77.9% | 71.8% |
+| improved since 2020 | **7.5%** | 46.6% | 71.5% | 77.2% | 81.5% | 77.9% | 71.8% |
 
-Ten times less attention at `t=2`. Across 2,839 cells attacked, every record
-came from there — four at `t=2`, none from the 1,818 attempts at `t>=3`.
+Ten times less *recorded improvement* at `t=2`. All four records came from
+there — none from the 1,818 cells attacked at `t>=3`.
 
-A second signal sharpens it. The repository records *how* each value was
+A second signal sharpens it: the repository records *how* each value was
 established, and a value inherited from a neighbour by a generic construction
-means nobody ever searched that cell. Measured at published-minus-one across
-the whole sweep: median 192 uncovered for inherited cells, 1,862 for cells
-someone had actually searched. Three of the four records came from a pass aimed
-at the inherited class.
+is one that has no recorded direct search behind it. Measured at
+published-minus-one across the whole sweep, median 192 uncovered for inherited
+cells against 1,862 for cells with a recorded search. Three of the four records
+came from a pass aimed at the inherited class.
 
-C(65,14,2)'s entire recorded history is two lines, seventeen years apart, both
-restrictions of the 66-point design. It had never been searched at all.
+**What this evidence does not show.** The repository records successes, not
+attempts. A cell with no recorded improvement is not a cell nobody tried —
+failures leave no trace anywhere in this data. These parameters may well have
+been attacked and survived it; there is no way to tell from here.
+
+### Being able to convert
+
+Knowing where to look was necessary and nowhere near sufficient.
+
+- **2,948 cells attacked, 4 records. A hit rate of 0.14%.**
+- **120 arms on fresh inherited-provenance cells, 60 million moves each: zero
+  records.** Aimed squarely at the right class, nothing falls out on its own.
+- Naive annealing aimed *directly* at a cell already known to be solvable finds
+  it **1 time in 6**, and spends the other five stuck one pair short.
+
+So the records needed both halves: a region worth searching, and a search good
+enough to convert one. The kernel had to run three orders of magnitude faster
+than the straightforward version before any of this was affordable, and the
+move rule had to be right before the last uncovered pair could be closed at
+all.
 
 ## What failed first
 
@@ -147,9 +167,11 @@ still runs, slowly.
 
 ## Honest limits
 
-- The four records are all at `t=2`, and that region is now nearly exhausted:
-  750 of 763 open cells have been attacked. Further results need the *next*
-  under-explored region to be identified.
+- The four records are all at `t=2`, and the open cells there are now nearly
+  all attacked: 750 of 763. Further results need another region worth aiming at.
+- "Less recorded improvement" is not "nobody tried". The repository logs
+  successes, so unsuccessful attempts by others are invisible here and the
+  targeting signal should be read as correlational.
 - The LLM-guided solver beats naive annealing by about sevenfold, but it does
   not beat a well-designed fixed strategy — per-cell deliberation costs more
   than it returns once a good move rule exists. What the model contributed was
