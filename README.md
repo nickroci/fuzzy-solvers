@@ -51,7 +51,7 @@ handful and the gap widens, until at the last uncovered pair it decides the
 outcome. A median comparison understates this, because it averages the regime
 where the methods tie with the regime that actually produces records.
 
-## Four new covering designs
+## Five new covering designs
 
 A `(v, k, t)`-covering design is a family of `k`-subsets of a `v`-set such that
 every `t`-subset lies inside at least one of them. `C(v,k,t)` is the smallest
@@ -61,6 +61,7 @@ values for about thirty years.
 
 | Cell | Published | **This work** | Lower bound | Pairs covered |
 |---|---|---|---|---|
+| C(41,9,2) | 28 | **27** | 26 | 820 |
 | C(56,13,2) | 25 | **24** | 22 | 1,540 |
 | C(65,14,2) | 29 | **28** | 27 | 2,080 |
 | C(82,19,2) | 25 | **24** | 22 | 3,321 |
@@ -100,7 +101,7 @@ Share of cells whose current value was set in 2020 or later:
 |---|---|---|---|---|---|---|---|
 | improved since 2020 | **7.5%** | 46.6% | 71.5% | 77.2% | 81.5% | 77.9% | 71.8% |
 
-Ten times less *recorded improvement* at `t=2`. All four records came from
+Ten times less *recorded improvement* at `t=2`. All five records came from
 there — none from the 1,818 cells attacked at `t>=3`.
 
 A second signal sharpens it: the repository records *how* each value was
@@ -115,11 +116,16 @@ attempts. A cell with no recorded improvement is not a cell nobody tried —
 failures leave no trace anywhere in this data. These parameters may well have
 been attacked and survived it; there is no way to tell from here.
 
+And the signal is a tendency, not a rule. C(41,9,2) was not an inherited value
+at all: its entire history is one line, 28 blocks found by simulated annealing
+in 2008. Somebody pointed a real search at those exact parameters and got 28,
+and it still fell to 27.
+
 ### Being able to convert
 
 Knowing where to look was necessary and nowhere near sufficient.
 
-- **2,948 cells attacked, 4 records. A hit rate of 0.14%.**
+- **Around 3,100 cells attacked, 5 records. A hit rate near 0.16%.**
 - **120 arms on fresh inherited-provenance cells, 60 million moves each: zero
   records.** Aimed squarely at the right class, nothing falls out on its own.
 - That same run measured the targeting signal prospectively, on a random sample
@@ -199,6 +205,10 @@ still runs, slowly.
   than it returns once a good move rule exists. What the model contributed was
   choosing where to look, and designing the move rule, not deliberating per
   instance.
+- Earlier notes here claimed the orbit-development machinery was a net cost on
+  this problem class. C(41,9,2) contradicts that: it was found by developing
+  base blocks under a group of order 3, on a cell that unstructured restarts
+  had not cracked.
 - Both arms of the comparison share the accelerated kernel. That is deliberate:
   it makes the comparison a test of search strategy rather than of
   implementation speed.
