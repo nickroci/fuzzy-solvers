@@ -1,0 +1,336 @@
+"""Group actions and orbit development: the construction language for coverings.
+
+A 53-block covering on 28 points is not 53 arbitrary subsets. It is a handful
+of *base blocks* developed under a group, and that is why local search from
+random designs cannot find one: it is looking in a space of size ``C(28,13)``
+choose 53 for an object that lives in a space of a few base blocks.
+
+Developing a base block under a group means taking its image under every group
+element. The orbit has size ``|G|`` divided by the size of the block's
+stabiliser, so a design's block count is a sum of divisors of ``|G|`` - which
+is a strong arithmetic constraint the search can exploit rather than discover.
+For ``C(28,13,4)``, 53 blocks decomposes under the cyclic group as
+``28 + 14 + 7 + 4``, four base blocks with stabilisers of orders 1, 2, 4 and 7.
+
+The model authors the group and the base blocks. This module develops what it
+is given and nothing else: it contains no search and no scoring, so a
+construction can never flatter itself.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from math import gcd
+
+
+@dataclass(frozen=True, slots=True)
+class PointGroup:
+    """A permutation group on ``points``, given by generator permutations.
+
+    ``generators`` are images: ``generator[i]`` is where point ``i`` goes. The
+    full group is closed from them, so a caller may name a group by any
+    generating set rather than having to enumerate it.
+    """
+
+    points: int
+    generators: tuple[tuple[int, ...], ...]
+    name: str = "group"
+
+    def __post_init__(self) -> None:
+        """Reject anything that is not a permutation of the point set."""
+        for index, generator in enumerate(self.generators):
+            if len(generator) != self.points:
+                message = f"generator {index} has {len(generator)} images, not {self.points}"
+                raise ValueError(message)
+            if sorted(generator) != list(range(self.points)):
+                message = f"generator {index} is not a permutation of the point set"
+                raise ValueError(message)
+
+    def elements(self) -> tuple[tuple[int, ...], ...]:
+        """Return every element of the group generated, closed under composition."""
+        identity = tuple(range(self.points))
+        found = {identity}
+        frontier = [identity]
+        while frontier:
+            current = frontier.pop()
+            for generator in self.generators:
+                image = tuple(generator[point] for point in current)
+                if image not in found:
+                    found.add(image)
+                    frontier.append(image)
+        return tuple(sorted(found))
+
+    @property
+    def order(self) -> int:
+        """Return the number of group elements."""
+        return len(self.elements())
+
+
+def apply_to_block(permutation: tuple[int, ...], block: int) -> int:
+    """Return the image of a block under one permutation."""
+    image = 0
+    for point, target in enumerate(permutation):
+        if block >> point & 1:
+            image |= 1 << target
+    return image
+
+
+def orbit(group: PointGroup, block: int) -> tuple[int, ...]:
+    """Return the distinct images of a block under the group, sorted."""
+    return tuple(sorted({apply_to_block(element, block) for element in group.elements()}))
+
+
+def develop(group: PointGroup, base_blocks: tuple[int, ...]) -> tuple[int, ...]:
+    """Develop base blocks into a design, dropping repeats across orbits."""
+    blocks: dict[int, None] = {}
+    for base in base_blocks:
+        for image in orbit(group, base):
+            blocks[image] = None
+    return tuple(blocks)
+
+
+def orbit_sizes(group: PointGroup, base_blocks: tuple[int, ...]) -> tuple[int, ...]:
+    """Return the size of each base block's orbit, in order."""
+    return tuple(len(orbit(group, base)) for base in base_blocks)
+
+
+def cyclic(points: int) -> PointGroup:
+    """Return the cyclic group shifting every point by one."""
+    shift = tuple((point + 1) % points for point in range(points))
+    return PointGroup(points=points, generators=(shift,), name=f"Z{points}")
+
+
+def cyclic_with_fixed(points: int, fixed: int = 1) -> PointGroup:
+    """Return a cyclic group on the first points, fixing the last ``fixed`` of them.
+
+    Designs on ``v`` points are often built by acting cyclically on ``v - 1``
+    of them and holding one aside as an infinite point, which is why this is a
+    named construction rather than something the caller assembles.
+    """
+    moving = points - fixed
+    if moving < 1:
+        message = f"need at least one moving point, got {moving}"
+        raise ValueError(message)
+    shift = tuple((point + 1) % moving if point < moving else point for point in range(points))
+    return PointGroup(points=points, generators=(shift,), name=f"Z{moving}+{fixed}")
+
+
+def multiplier(points: int, factor: int) -> PointGroup:
+    """Return the group generated by a shift and a multiplication.
+
+    Multiplying the point labels by a unit modulo ``points`` is an automorphism
+    of the cyclic structure, and combining it with the shift gives a larger
+    group whose orbits are correspondingly fewer and bigger.
+    """
+    if gcd(factor, points) != 1:
+        message = f"factor {factor} must be a unit modulo {points}"
+        raise ValueError(message)
+    shift = tuple((point + 1) % points for point in range(points))
+    scale = tuple((point * factor) % points for point in range(points))
+    return PointGroup(points=points, generators=(shift, scale), name=f"Z{points}:x{factor}")
+
+
+def frobenius(prime_power: int, multiplier_order: int) -> PointGroup:
+    """Return an affine group ``x -> a*x + b`` with ``a`` of the given order.
+
+    These are the groups most classical designs are built on, so naming one is
+    a way for a search to ask for a classical shape without specifying it
+    element by element.
+    """
+    units = [a for a in range(1, prime_power) if gcd(a, prime_power) == 1]
+    root = next(
+        (
+            a
+            for a in units
+            if all(pow(a, e, prime_power) != 1 for e in range(1, multiplier_order))
+            and pow(a, multiplier_order, prime_power) == 1
+        ),
+        None,
+    )
+    if root is None:
+        message = f"no unit of order {multiplier_order} modulo {prime_power}"
+        raise ValueError(message)
+    shift = tuple((point + 1) % prime_power for point in range(prime_power))
+    scale = tuple((point * root) % prime_power for point in range(prime_power))
+    return PointGroup(
+        points=prime_power,
+        generators=(shift, scale),
+        name=f"AGL1({prime_power}):{multiplier_order}",
+    )
+
+
+def subgroups(group: PointGroup) -> tuple[tuple[tuple[int, ...], ...], ...]:
+    """Return every subgroup, as a tuple of element tuples.
+
+    Affordable only for the small groups these designs are built on, which is
+    the regime here: a point action on thirty points with a few dozen elements.
+    """
+    elements = group.elements()
+    identity = tuple(range(group.points))
+    found: set[frozenset[tuple[int, ...]]] = set()
+    for element in elements:
+        generated = {identity}
+        current = element
+        while current not in generated:
+            generated.add(current)
+            current = tuple(element[point] for point in current)
+        found.add(frozenset(generated))
+    # close pairs of cyclic subgroups, enough for the small groups in use
+    for _ in range(2):
+        for left in list(found):
+            for right in list(found):
+                union = set(left | right)
+                closed = set(union)
+                frontier = list(union)
+                while frontier:
+                    a = frontier.pop()
+                    for b in union:
+                        image = tuple(b[point] for point in a)
+                        if image not in closed:
+                            closed.add(image)
+                            frontier.append(image)
+                if len(closed) <= len(elements):
+                    found.add(frozenset(closed))
+    return tuple(tuple(sorted(subgroup)) for subgroup in found)
+
+
+def point_orbit_sizes(elements: tuple[tuple[int, ...], ...], points: int) -> tuple[int, ...]:
+    """Return the sizes of the orbits a set of permutations induces on points."""
+    seen: set[int] = set()
+    sizes = []
+    for point in range(points):
+        if point in seen:
+            continue
+        orbit_points = {element[point] for element in elements}
+        seen |= orbit_points
+        sizes.append(len(orbit_points))
+    return tuple(sizes)
+
+
+def _subset_sum(sizes: tuple[int, ...], total: int) -> bool:
+    reachable = {0}
+    for size in sizes:
+        reachable |= {value + size for value in reachable if value + size <= total}
+    return total in reachable
+
+
+def admissible_orbit_sizes(group: PointGroup, block_size: int) -> tuple[int, ...]:
+    """Return the orbit sizes a block of this size can possibly have.
+
+    A block's stabiliser fixes it setwise, so the block is a union of the
+    stabiliser's orbits *on points* - and those orbits need not be free. That
+    is the subtlety: a stabiliser of order 2 can fix a point and pair up the
+    rest, so a 13-subset can have a stabiliser of order 2 even though 2 does
+    not divide 13. Requiring the stabiliser order to divide the block size is
+    wrong, and wrongly reports groups as impossible: under a 26-cycle with two
+    fixed points it predicts orbit sizes 2 and 26, where the truth is 13
+    and 26.
+
+    So each subgroup is admissible exactly when the block size is a sum of its
+    point-orbit sizes, and it then contributes orbits of size ``|G|`` over its
+    own order.
+    """
+    order = group.order
+    sizes = set()
+    for subgroup in subgroups(group):
+        if _subset_sum(point_orbit_sizes(subgroup, group.points), block_size):
+            sizes.add(order // len(subgroup))
+    return tuple(sorted(sizes))
+
+
+def transitive_block_count_constraint(group: PointGroup, points: int, block_size: int) -> int:
+    """Return the modulus every block count obeys under a point-transitive group.
+
+    If the group is transitive on points then every point lies in the same
+    number of blocks, so ``v * r = B * k`` and ``v`` divides ``B * k``. That
+    forces ``B`` to be a multiple of ``v / gcd(v, k)`` - a far stronger and
+    more reliable constraint than any stabiliser argument, and it needs only
+    the point action. Returns 1 when the group is not transitive, which
+    imposes nothing.
+    """
+    if len(point_orbit_sizes(group.elements(), points)) != 1:
+        return 1
+    return points // gcd(points, block_size)
+
+
+def expressible(sizes: tuple[int, ...], total: int) -> bool:
+    """Report whether a block count is a sum of admissible orbit sizes."""
+    if total < 0:
+        return False
+    reachable = {0}
+    for _ in range(total):
+        nxt = {r + s for r in reachable for s in sizes if r + s <= total}
+        if not nxt - reachable:
+            break
+        reachable |= nxt
+    return total in reachable
+
+
+def from_generators(
+    points: int, generators: tuple[tuple[tuple[int, ...], ...], ...], name: str
+) -> PointGroup:
+    """Build a group from several permutations, each in cycle notation.
+
+    One permutation generates a cyclic group, which cannot express the product
+    actions many classical designs use.  ``C5 x C5`` acting on a five-by-five
+    grid needs two commuting generators, and its short block orbits are what
+    make a bounded exhaustive search possible where the cyclic group of the
+    same order offers almost none.
+    """
+    images = []
+    for cycles in generators:
+        image = list(range(points))
+        seen: set[int] = set()
+        for cycle in cycles:
+            for position, point in enumerate(cycle):
+                if not 0 <= point < points:
+                    message = f"point {point} is outside a {points}-point set"
+                    raise ValueError(message)
+                if point in seen:
+                    message = f"point {point} appears in more than one cycle"
+                    raise ValueError(message)
+                seen.add(point)
+                image[point] = cycle[(position + 1) % len(cycle)]
+        images.append(tuple(image))
+    return PointGroup(points=points, generators=tuple(images), name=name)
+
+
+def grid_translations(rows: int, columns: int) -> PointGroup:
+    """Return the translation group of a grid, acting on ``rows * columns`` points.
+
+    Point ``(i, j)`` is indexed ``i * columns + j``.  This is the product action
+    a single permutation cannot express, and the one whose short orbits make a
+    bounded search tractable.
+    """
+    points = rows * columns
+    down = tuple(
+        ((point // columns + 1) % rows) * columns + point % columns for point in range(points)
+    )
+    across = tuple(
+        (point // columns) * columns + (point % columns + 1) % columns for point in range(points)
+    )
+    return PointGroup(points=points, generators=(down, across), name=f"C{rows}xC{columns}")
+
+
+def from_cycles(points: int, cycles: tuple[tuple[int, ...], ...], name: str) -> PointGroup:
+    """Build a group from one permutation written in cycle notation.
+
+    This is the escape hatch that lets a search author a group of its own
+    rather than pick from a list. Points named in no cycle are fixed, which is
+    how a group acting on fewer points than the design has is expressed - a
+    13-cycle on 28 points needs two 13-cycles and two fixed points, and that is
+    exactly the shape that makes a 53-block design arithmetically possible.
+    """
+    image = list(range(points))
+    seen: set[int] = set()
+    for cycle in cycles:
+        for position, point in enumerate(cycle):
+            if not 0 <= point < points:
+                message = f"point {point} is outside a {points}-point set"
+                raise ValueError(message)
+            if point in seen:
+                message = f"point {point} appears in more than one cycle"
+                raise ValueError(message)
+            seen.add(point)
+            image[point] = cycle[(position + 1) % len(cycle)]
+    return PointGroup(points=points, generators=(tuple(image),), name=name)

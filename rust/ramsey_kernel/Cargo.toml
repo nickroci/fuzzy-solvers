@@ -1,0 +1,15 @@
+[package]
+name = "ramsey_kernel"
+version = "0.1.0"
+edition = "2021"
+description = "Exact maximum-independent-set kernel for triangle-free Ramsey graph search."
+
+[lib]
+name = "ramsey_kernel"
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

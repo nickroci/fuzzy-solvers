@@ -1,0 +1,15 @@
+[package]
+name = "code_kernel"
+version = "0.1.0"
+edition = "2021"
+description = "Minimum-distance kernel for binary linear code search."
+
+[lib]
+name = "code_kernel"
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
